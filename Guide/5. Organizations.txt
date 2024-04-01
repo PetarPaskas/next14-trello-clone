@@ -1,0 +1,85 @@
+Clerk odradjuje posao oko "organizations"
+"Organizations settings" > enable organizations 
+
+Onda u file system - 
+    > select-org 
+        > [[...select-org]]
+            > page.tsx
+
+import { OrganizationList } from "@clerk/nextjs"
+export default function CreateOrganizationPage(){
+    return <OrganizationList/>
+}
+
+"/select-org"
+
+I ta komponenta "OrganizationList" sluzi da ti postavi 
+window gde selectujes i kreiras organizatione
+
+<OrganizationList
+    hidePersonal={true} <-- option da removeujes "Personal account" kao organization option; b2b radimo ipak
+    afterSelectOrganizationUrl="/organization/:id" <-- unutar orgList component ":id" ce biti prepoznat kao slug 
+    afterCreateOrganizationUrl="/organization/:id"
+    />
+
+
+------------------------
+
+    Unutar "CreateOrganizationPage" koriscenjem "auth" mozes da 
+    proveris i organization ID 
+
+    export default function OrganizationPage(props:OrganizationPageProps){
+    const {userId, orgId} = auth();
+    const {params} = props;
+
+    if(orgId !== params.organizationId)
+        return <div>Error kita</div>;
+        
+    return <div>Org Page - {params.organizationId}</div>;
+}
+
+
+
+Imas i "OrganizationSwitcher" component koja ti omogucava 
+da switchujes izmedju organizacija 
+
+import {OrganizationSwitcher} from "@clerk/nextjs";
+
+CreateOrganizationPage()=> <div>
+                                <OrganizationSwitcher
+                                            hidePersonal={true}/>
+                            </div>
+
+
+
+----------------------------------
+Konfigurisanje middlewarea da:
+
+export default authMiddleware({
+  // Routes that can be accessed while signed out
+  publicRoutes: ['/'],
+  // Routes that can always be accessed, and have
+  // no authentication information
+  ignoredRoutes: ['/no-auth-in-this-route'],
+  afterAuth(auth, req){
+    if(auth.userId && auth.isPublicRoute){      //ako si ulogovan i ako pokusavas da pristupis public routeu
+      let path = "/select-org";                 //idi na select-org page ako nisi select organization
+
+      if(auth.orgId)                            //idi na organization page ako si selectovao organization
+      path = `/organization/${auth.orgId}`;     
+
+      const orgSelection = new URL(path,req.url);
+      return NextResponse.redirect(orgSelection);
+    }
+
+    if(!(auth.userId && auth.isPublicRoute)){           //ako nisi ulogovan i ne pokusavas da pristupis public route
+      return redirectToSignIn({returnBackUrl: req.url })
+    }
+
+    if(auth.userId && !auth.orgId && req.nextUrl.pathname !== "/select-org"){ //ako si ulogovan i nisi na stranici za select org, a nemas 
+                                                                              //selektovanu organizaciju onda je selektuj
+      const orgSelection = new URL("/select-org", req.url);
+      return NextResponse.redirect(orgSelection);
+    }
+  }
+});

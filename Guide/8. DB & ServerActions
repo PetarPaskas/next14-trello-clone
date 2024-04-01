@@ -1,0 +1,235 @@
+> npm install -D prisma
+> npx prisma init
+> npm install @prisma/client
+instalira i kreira prisma folder i schema.prisma
+
+    > prisma
+        > schema.prisma 
+
+schema.prisma 
+-----------------
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+-----------------------------------------
+sada i unutar .env fajla imamo sledeci key:
+DATABASE_URL="postgresql://johndoe:randompassword@localhost:5432/mydb?schema=public"
+
+Za database koristicemo PlanetScale - free unlimited DB,
+ali zahteva kreditnu karticu :))))
+
+> use docker!!
+
+> prisma!!!!!!!!!!!!!!!!!!
+unutar Prisma schema ti dodjes i definises svoje modele.
+
+Na primer 
+
+model Board {
+  id String @id @default(uuid())
+  title String
+}
+
+I nakon sto si kreirao ili modifikovako 
+svoj model u bazi onda ga moras generisati
+
+> npx prisma generate ---------------
+--ova komanda ce kreirati tipove i funkcije 
+za taj novi model koji smo dodali lokalno.
+lokalno - to znaci da je dodato u node_modules
+
+Nakon sto je paket dodat u node_modules onda nam treba 
+prisma client.
+
+> npx prisma db push ---------------
+Ovom komandom cemo persistovati nas schema
+sa bazom podataka. Svaki put kada radis npx prisma db push 
+ili npx prisma generate bitno je da restartujes aplikaciju.
+
+
+!Ensure communication with the DB
+    > lib
+        > db.ts
+
+Najprimitivniji nacin da exportujemo nasu bazu 
+jeste na sledeci nacin:
+
+export const db = new PrismaClient();
+
+Ali boilerplate kod koji se dodaje na sledecem koraku 
+jeste zbog hot reload. Tokom hot reloada novi 
+prisma client bice inicijalizovan vise puta 
+i kreirace "warning" unutar projekta. 
+
+Zato kada kreiramo db variable proveravamo da li 
+postoji "prisma" objekat na globalThis objektu. 
+Ako ne postoji onda kreiraj novi prisma client. 
+Ako postoji onda mi ga vrati.
+
+I ako se pitas zasto hot reload ne affectuje 
+globalThis - to je zato sto global je excluded
+iz hot reloada.
+
+----------------
+import {PrismaClient} from "@prisma/client";
+
+declare global {
+    var prisma: PrismaClient | undefined;
+}
+export const db = globalThis.prisma || new PrismaClient();
+
+if(process.env.NODE_ENV !== "production"){
+    globalThis.prisma = db;
+}
+-----------------
+
+hot reload ce se aktivirati kada promenimo neki 
+fajl. 
+
+-----------------------------------------
+Create the most primitive server action.
+-- server actions se mogu samo unutar <form> elementa pozivati
+i postoji special keyword "action" koji nam to omogucava
+
+> organization
+    > page.tsx 
+
+OrganizationIdPage(){
+    return <div>
+        <form>
+            <input 
+                id="title"
+                name="title"
+                required
+                placeholder="enter board title"/>
+        </form>
+    </div>
+}
+
+Organization ID page je server component. 
+Tako da ako napises neki "console.log("")"
+on ce biti u terminalu ispisan. Ne u browseru.
+
+Ako uzmes "use client" onda ce biti ispisan u browseru.
+Kul stvar sa server components je sto mozemo direktno 
+da pozivamo bazu podataka.
+
+Jedan problem ranije je da sa server components nismo 
+mogli da mutiramo podatke sa server components.
+
+async function create(formData: FormData){
+    "use server"
+
+    console.log("I am triggered");
+}
+
+i onda unutar <form action={create}>
+
+I onda ce se u terminalu taj "log" ispisati.
+To znaci da se ta funkcija uspesno izvrsila 
+u server components. Ranije nisi mogao passovati 
+nikakve funkcije/hookove. 
+
+I onda mozemo da slusamo neke html eventove i na 
+osnovu njih sredjivati komunikaciju sa bazom podataka.
+
+
+
+export default OrganizationIdPage(){
+
+    async function create(formData: FormData){
+        "use server" 
+
+        console.log("I am triggered");
+    }
+
+    return <div>
+        <form action={create}>
+            <input 
+                id="title"
+                name="title"
+                required
+                placeholder="enter board title"/>
+        </form>
+    </div>
+}
+
+=============================================
+import {db} from "@/lib/db";
+export default OrganizationIdPage(){
+
+    async function create(formData: FormData){
+        "use server" 
+
+        const title = formData.get("title");
+        db.board.create({
+            data:{
+                title
+            }
+        })
+    }
+
+    return <div>
+        <form action={create}>
+            <input 
+                id="title"
+                name="title"
+                required
+                placeholder="enter board title"/>
+        </form>
+    </div>
+}
+
+> npx prisma studio; 
+---- na port localhost:5555 se otvori prisma interactive sesija sa bazom podataka
+
+-----------------------------------------------------------------------
+import { db } from "@/lib/db";
+import {auth} from "@clerk/nextjs"
+
+interface OrganizationPageProps{
+    params:{
+        organizationId:string
+    }
+}
+
+export default function OrganizationPage(props:OrganizationPageProps){
+    const {userId, orgId} = auth();
+    const {params} = props;
+
+    async function create(formData: FormData){
+        "use server";
+
+        const title = formData.get("title") as string;
+        console.log("Creating board - ",title);
+        await db.board.create({
+            data:{
+                title
+            }
+        });
+    }
+
+    return <div>
+        <form action={create}>
+            <input
+                type="text"
+                placeholder="Input title here"
+                name="title"
+                id="title"/>
+            <button type="submit">
+                OK
+            </button>
+        </form>
+    </div>
+}

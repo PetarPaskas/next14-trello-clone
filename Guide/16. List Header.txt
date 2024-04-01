@@ -1,0 +1,67 @@
+Unutar list-container.tsx mi prezentuejmo informacije vezane za taj board 
+tj barem prezentujemo formu koja ce da kreira liste za sada. 
+
+"use client";
+
+import { ListWithCards } from "@/types";
+import { ListForm } from "./list-form";
+
+interface ListContainerProps {
+    data: ListWithCards[],
+    boardId: string
+}
+
+export function ListContainer({data, boardId}:ListContainerProps){
+    return (
+        <ol>
+            <ListForm/>
+            <div className="flex-shrink-0 w-1"></div>
+        </ol>
+    )
+}
+
+Ono sto cemo sada da uradimo jeste da dodamo state. 
+Taj state ce predstavljati podatke sa kojima radimo, a to su 
+liste i njihove kartice "ListWithCards[]". 
+Zelimo tu da ih prezentujemo.
+
+Napravicemo lokalni state na osnovu tih "ListWithCards[]"
+To je zato sto kada budemo implementirali drag & drop zelimo 
+stvari da modifikujemo u lokalnom state-u te komponente pre nego 
+ista posaljemo bazi podataka.
+
+To se u sustini naziva optimistic update - kada radis drag & drop 
+zato bolje da odradis optimistic update jer cekati sekund-dva 
+da se nesto updateuje je jako los user experience.
+
+export function ListContainer({data, boardId}:ListContainerProps){
+    const [orderedData, setOrderedData] = useState(data);
+    
+        return (
+        <ol>
+            <ListForm/>
+            <div className="flex-shrink-0 w-1"></div>
+        </ol>
+    )
+}
+
+-----------------------------
+
+
+Sada promene da bi smo uhvatili onda dodajemo useEffect za kada se 
+taj izvodni "data" promeni kroz props.
+
+useEffect(()=>{
+    setOrderedData(data)
+},[data])
+
+and with that we can continue
+
+--------------------------
+
+setupuj forme i kreiraj "update-list" action
+
+-------------------------
+
+sve je u "list-header"
+

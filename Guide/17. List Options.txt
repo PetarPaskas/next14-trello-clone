@@ -1,0 +1,4 @@
+delete-list action
+copy-list action 
+
+i u sustini kao popover je dosao i napravio da to mozes da uradis.

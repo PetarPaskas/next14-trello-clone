@@ -1,0 +1,19 @@
+> npm install @hello-pangea/dnd
+
+Potom u list-container.tsx 
+
+import {
+    DragDropContext,
+    Droppable
+} from "@hello-pangea/dnd";
+
+Potom citavu tu listu postavis u DragDropContext 
+
+return <DragDropContext>
+        <ol>
+            ...
+        </ol>
+    </DragDropContext>
+
+....ummm it's shitty and abstract :D 
+Explore the library

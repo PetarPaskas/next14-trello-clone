@@ -1,0 +1,242 @@
+Kako radi routing unutar next projecta -- AppRouting
+
+Prva stavar koju treba da znas jeste da svaki "page" 
+unutar "app" foldera je SERVER COMPONENT!
+To znaci da odatle imas neke posebne konvencije koje 
+nisu prisutne u React SPAs 
+
+Unutar "app" foldera kreiraj folder "example".
+Unutar "example" foldera kreiraj "Page" .tsx fajl 
+Unutra mozes nesto exportovati 
+
+const ExamplePage = ()=>{
+    return (<div>
+            I am an example page
+            </div>);
+}
+
+export default ExamplePage;
+
+Ako ne exportujes default onda routing nece raditi.
+-----------
+Konvencija:
+Kada imas glavnu stranicu unutar foldera 
+onda se u sustini folder name kombinuje 
+sa komponentom i tako se stvara "naziv komponente"
+
+Tj cinjenica da pravis komponentu Page unutar
+foldera Example 
+
+"Folder"+"Component" => ExamplePage
+
+Seti se! To je samo naziv promenljive/konstante.
+Stvari naziv fajla i dalje ostaje Page.tsx
+-----------
+
+Znaci imamo sada 
+
+|___  app
+        |__ example 
+        |   |__ page.tsx
+        |
+        |__ page.tsx
+
+Na "root" uri-u se renderuje 
+: "app/page.tsx"
+
+Na "root"/example se renderuje
+: "app/example/page.tsx"
+
+------------------------------
+Tako se razresava static route
+------------------------------
+Kako sada ide dynamic routing kada route ima parametar
+------------------------------------------------------
+Ako zelimo da kazemo nextu nas dynamic 
+routing onda unutar "route-a" ubacimo 
+novi folder gde se vrednost parametra 
+ubacuje unutar square brackets [value]
+--------------------------------------
+> app 
+    > users
+        > [id]
+            - page.tsx
+--------------------------------------
+
+const IdPage = ()=>{
+    return <div> ID Page! </div>;
+}
+
+export default IdPage;
+--------------------
+"root"/users/kita22
+
+Kako fetchovati onda taj route parametar?
+
+Confirm the name of the variable:
+[id] - to je ime unutar [] naseg foldera.
+
+const IdPage = ({ params }:{ params: {id: string}})
+    =>{
+        return <div> {params.id} </div>
+    }
+
+
+({params})=>{} //vanilla js; destructuring 
+( {params}:{params:{id:string}})=>{} //TS; destructuring
+
+
+--------------------------------------
+> app 
+    > users
+        - page.tsx
+        > [id]
+            - page.tsx
+--------------------------------------
+"root"/users
+
+i onda ce stranica iz "users" page.tsx bez dinamickih parametara
+
+---------------------------------------------------
+---------------------------------------------------
+---------------------------------------------------
+Sta ako zelis da napravis samo obicni folder koji je excluded od routeova?
+
+> app 
+    > (test)
+        > page.tsx -- returnuje neku komponentu npr 
+
+"root"/test => dobijes 4044
+
+Unutar (folder)-a mozemo kreirati reusable layouts za 
+razlicite rute.
+
+> app 
+    > (test)
+        > something
+            - page.tsx  //bice dostupno u URL-u
+    
+    const SomethingPage = ()=>{
+        return <div> Something page </div>;
+    }
+
+    -- "root"/something
+
+
+> app 
+    > (test)
+        > something
+            - page.tsx 
+        > other 
+            - page.tsx 
+
+    const OtherPage = () => <div>Other page</div> 
+
+    -- "root"/other 
+
+Zasto to radimo u "test" folderu?
+Jer ako zelis da organizujes stvari sa puno ruta 
+vrlo je korisno organizovati ih unutar foldera 
+koji ne moze biti trackovan 
+
+Npr (routes) 
+        > users 
+        > dashboard 
+        ------i slicno 
+
+Reserved file poput page.tsx je i layout.tsx 
+
+-------------------
+layout.tsx 
+-------------------
+
+(test)
+    > other 
+        > page.tsx
+    > something 
+        > page.tsx
+    > layout.tsx //zahteva default export 
+
+const TestLayout = ()=>{
+    return <div>Layout</div>
+}
+
+export default TestLayout;
+
+I sada ako odes na 
+    -- "root"/something ili 
+    -- "root"/other
+
+    Videce se samo body iz Layout page-a 
+    to jest "layout.tsx" 
+
+Resenje je da ako ima ikakve childrene da ih prosledi:
+
+const TestLayout = ({children} : {children:React.ReactNode})=>{
+    return (<>
+            <div>Navigation page</div>
+            {children}
+           </>);
+}
+
+Taj layout iz parent foldera ce wrappovati u sustini sve child elemente
+
+I sada ako odes na 
+    -- "root"/something ili 
+    -- "root"/other
+
+    ispisace i njihove sadrzaje.
+
+I na primer mozes i da dodjes i menjas layouting za odredjene komponente 
+
+(public)
+    > users 
+        > [id]
+            > page.tsx
+    > layout.tsx
+
+(admin)
+    > admin-dashboard   
+        > page.tsx
+    > layout.tsx
+
+PublicLayout i AdminLayout itd...
+-------------------------------------------------------------------
+
+Takodje postoje API Routes - u sustini kao da pravi API endpointove;
+
+> app 
+    > users
+        > route.ts //reserved file 
+
+import {NextResponse} from " next/server";
+
+export function GET(){
+    return NextResponse.json({
+        hello: "trello"
+    })
+}
+
+export function POST(){
+    return NextResponse.json({
+        hello: "trello"
+    })
+}
+
+export function PATCH(){
+    return NextResponse.json({
+        hello: "trello"
+    })
+}
+
+------------------ i sada posle ovoga; guess what. Next je backend framework.
+
+---------------------------------------------------
+Postoji jos jedan tip foldera, a to su oni koji pocinju sa "_" underscore.
+Takvi folderi ce kompletno biti odbaceni od strane routing sistema i nece uopste biti prezentovani 
+
+_components
+    > example 
+        > page.tsx 
+            ----- "root"/example ; nece raditi
+

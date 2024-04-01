@@ -1,0 +1,156 @@
+> npm install zod
+
+Sada cemo da odvojimo server actions od server components.
+
+...root 
+    > actions 
+        > create-board.ts
+
+i sada onu create funkciju i page.tsx od board-a mozemo ovde da postavimo. 
+Umesto da samo ta funkcija bude dekorisana sa "use server"
+tu mozemo ceo fajl dekorisati sa "use server"
+
+"use server"
+
+export async function createBoard(formData:FormData){
+    const title = formData.get("title") as string;
+
+    await db.board.create({
+        data:{
+            title
+        }
+    })
+}
+------------------------------------------------
+
+Ako zelis da dobacis sve iteme iz baze:
+
+const boards = db.board.findMany();
+
+------------------------------------------------
+Pri dodavanju novih itema u bazu ono sto je bitno za napomenuti 
+jeste da se komponenta nece rerenderovati i moras rucno da obavestis
+clienta da je doslo do izmene na bazi. Sada posto koristimo server 
+components to ide malo drugacije tj moraces reevaluetovati path na "create"
+
+import {revalidatePath} from "next/cache";
+export async function createBoard(formData:FormData){
+    const title = formData.get("title") as string;
+
+    await db.board.create({
+        data:{
+            title
+        }
+    })
+
+    revalidatePath("/organization/organizationId") //tvoj trenutni path; const path = usePathName() u clientu
+}
+
+-----------------------------------
+Deleting the board 
+
+"use server"
+import { db } from "@/lib/db";
+
+export async function deleteBoard(boardId:string){
+    await db.board.delete({
+        where:{
+            id:boardId
+        }
+    });
+
+}
+
+export async function Board({title, id}){
+    const deleteBoardWithId = deleteBoard.bind(null, id);
+
+    return <form action={deleteBoardWithId}> ...<button type=submit>delete</button> </form>
+}
+
+Zasto je sada nasa komponenta async?
+Zasto smo bindovali funkciju u drugu, a nismo action={()=>deleteBoard(id)} ?
+
+Komponenta koja koristi server actions mora da bude async. Pravilo 1.
+Server action takodje mora da bude async funkcija. Pravilo 2.
+Funkcija koja se attachuje na form action mora da bude dekorisana sa "use server". Pravilo 3.
+
+()=>deleteBoard(id) nije dekorisana sa "use server" i zato se koristi "bind" kako bi tu server action
+------------------------------------------
+
+Koja je onda glavna svrha server actionsa?
+U sustini dozvoljavaju nam da radimo mutacije sa server components.
+
+Jedna stvar koja je debelo pominjana unutar nextjs 
+dokumentacija je progressive enhancment koji nam 
+dozvoljava da ove mutacije radimo bez aktivacije
+javascripta sto ga cini mnogo brzim nego obicne
+api callove.
+
+------------------------------------------
+Loading states and displaying errors
+------------------------------------------
+
+Jedini nacin, a da ovaj lik zna kako bi to mogli 
+uraditi jeste kroz mesavinu server components 
+i client components
+
+Pocece od "OrganizationIdPage" gde ce promeniti 
+da forma koja poziva server action bude client 
+components
+
+useFormState for tracking form data and submissions
+useFormStatus for "progress of the form, i.e., when we want to inform the user that their submission was complete"
+
+useFormStatus ce raditi samo na "useFormState" controlled formama.
+Ako je komponenta koja je unutar tog stabla pozvala "useFormStatus" //const {pending} = useFormStatus
+onda ce znati status tog form submissiona tj da li je request 
+gotov ili nije.
+
+"use client";
+const initialState = { errors:{}, message:null};
+const {state, dispatch} = useFormState(createBoard, initialState)
+
+... +++
+
+return <form action={dispatch}>...</form>
+
+------
+useFormState((prevForm, currForm)=>state, initialState) - mappuje se na form action 
+i na taj nacin mozes lako da manipulises nekom formom. 
+
+----------------
+--server action 
+const createBoard = (prevState: FormData, currState: FormData)=>{
+    "use server";
+
+    const validatedFields = CreateBoardSchema.safeParse({
+        title: formData.get("title")
+    });
+
+    if(!validatedFields.success)
+    {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: "Missing fields"
+        }
+    }
+    
+    const title = formData.get("title") as string;
+
+    try{
+        await db.board.create({
+            data:{
+                title
+            }
+        });
+    }catch(err){
+        return {
+            message:"Database error"
+        };
+    }
+    return ({});
+}
+
+---------------
+I pazi foru - ova "createBoard" action je server action, 
+a triggerovana je sa client component.

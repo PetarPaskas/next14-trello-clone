@@ -1,0 +1,67 @@
+Sada treba da koristimo akciju unutar nase forme. 
+
+> app
+    > (platform)
+        > (dashboard)
+            > organization
+                > [organizationId]
+                    > _components 
+                        > form.tsx
+
+
+--- bivsi 
+"use client";
+import { createBoard } from "@/actions/create-board";
+import { useFormState } from "react-dom";
+import { FormInput } from "./form-input";
+
+export default function Form(){
+    const initialState = {errors:{},message:null};
+    const [state, dispatch] = useFormState(createBoard, initialState);
+
+    return <form action={dispatch}>
+            <FormInput
+                type="text"
+                placeholder="Input title here"
+                name="title"
+                id="title" 
+                errors={state}/>
+            <button type="submit">
+                OK
+            </button>
+        </form>;
+}
+
+
+--- novi 
+"use client";
+import { createBoard } from "@/actions/create-board/index";
+import { useAction } from "@/hooks/use-action";
+import { FormInput } from "./form-input";
+
+export default function Form(){
+    const {
+        isLoading,
+        execute,
+        fieldErrors
+    } = useAction(createBoard, {
+        onSuccess: console.log,
+        onError:console.log,
+        onComplete:()=>console.log("Complete")
+    });
+
+    const onSubmit = (formData: FormData)=>{
+        const title = formData.get("title") as string;
+        execute({title});
+    }
+    return <form action={onSubmit}>
+            <FormInput
+                type="text"
+                placeholder="Input title here"
+                name="title"
+                id="title" 
+                errors={fieldErrors?.title || []}/>
+        </form>;
+}
+
+00000000000000000000000000000000000000000000000000000000000000000

@@ -1,0 +1,88 @@
+Sada kreiramo listu boardova.
+
+U sustini ovde je pokazao x2 stvari. Prva da postoje funkcije 
+koje mozes exportovati kako bi menajo metadata
+
+
+LAYOUT.TSX
+export async function generateMetadata({
+    params
+}:{params:{boardId:string}}){
+    const {orgId} = auth();
+    if(!orgId)
+    return {
+        title:"Board"
+    }
+
+    const board = await db.board.findUnique({
+        where:{
+            id:params.boardId,
+            orgId: orgId
+        }
+    });
+
+
+
+    return {
+       title: board!.title ?? "Board"
+    }
+
+};
+
+Ovo je funkcija exportovana iz layout.tsx.
+
+--------------------
+Druga stvar je da i sam layout moze da ucitava params iz URL-a. 
+
+board > [boardId] > layout.tsx
+
+export default function BoardLayout({children, params}:{
+    children: React.ReactNode,
+    params: { boardId:string}
+})
+
+---------------------------
+TRECA STVAR!
+
+    const [isEditing, setIsEditing] = useState(false);
+    const formRef = useRef<ElementRef<"form">>(null);
+    const inputRef = useRef<ElementRef<"input">>(null);
+
+    const disableEditing = ()=>{
+        setIsEditing(false);
+    };
+    const enableEditing = ()=>{
+        setIsEditing(true);
+        setTimeout(()=>{
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        });
+    }
+
+pazi ovo - unutar reaktivnog elementa se attachuje na onClick -> <Button onClick={enableEditing} />
+Kod tog eventa kada se triggeruje "setIsEditing" u sustini ono sto ce se desiti jeste da ce se forma 
+re-renderovati. S obzirom da imas dva reference elementa koji nisu zahvaceni re-renderingom 
+onda se nece ni cuvati njihov state i koji je selektovan i slicno. 
+
+Razlog zasto ce sledeci kod selektovati i fokusirati: 
+        setIsEditing(true);
+        setTimeout(()=>{
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        });
+
+Dok ovaj nece:
+        setIsEditing(true);
+        inputRef.current?.focus();
+        inputRef.current?.select();
+
+jeste jer uz setTimeout ce se nova funkcija staviti nazad u queue za funkcije koje treba 
+da se izvrse i pritom ce se prvo izvrsiti "settovanje statea" pa onda posle toga setovanje dom elemenata.
+
+sinhrono se poziva "setIsEditing" i postavlja u queue
+potom se sinhrono poziva i postavlja u queue "setTimeout" funkcija.
+
+
+Kod koda ispod ce se pozvati sinhrono "setIsEditing" i psotavlja u queue i zatim se odmah sinhrono 
+izvrsavaju funkcije input refova. Ima onaj macro i micro queue. 
+Zato ce se prvo setovati ti "dom elementi" i posle toga re-renderovati.

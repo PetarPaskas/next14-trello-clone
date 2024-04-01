@@ -1,0 +1,176 @@
+1. Kako bi ga setupovali koristicemo clerk.
+Clerk je user management sistem; more than an authentication.
+
+2. copy&paste environment keys:
+
+3. follow instructions:
+https://clerk.com/docs/quickstarts/nextjs
+    - npm install @clerk/nextjs
+    - wrap the app with ClerkProvider(only where you want to use the auth)
+        kada wrapujes ClerkProvider-om samo onaj deo gde zelis 
+        da koristis auth onda mozes npr imati public delove kojima
+        moze bilo ko da pristupi(presentation page na primer) 
+        i "application" deo kojim autentikovani korisnici pristupaju
+
+Na primer:
+
+    > (platform)
+        > layout.tsx 
+        
+export default function PlatformLayout({children}:{children:React.ReactNode}){
+            return <ClerkProvider>{children}</ClerkProvider>
+        }
+
+4. Require authentication to access your app; middleware
+    Unutar root-a aplikacije "middleware.ts" kreiras(requirement)
+
+    With authMiddleware(), authentication will be enabled by default on all routes that your Next.js middleware runs on,
+    blocking access to all signed out visitors. You can specify valid routes using Next.js's matcher(opens in a new tab). 
+    Add the following code to your middleware.ts to protect your entire application:
+
+    middleware.ts
+----------------------
+----------------------
+import { authMiddleware } from "@clerk/nextjs";
+ 
+export default authMiddleware({
+  // Routes that can be accessed while signed out
+  publicRoutes: ['/anyone-can-visit-this-route'],
+  // Routes that can always be accessed, and have
+  // no authentication information
+  ignoredRoutes: ['/no-auth-in-this-route'],
+});
+ 
+export const config = {
+  // Protects all routes, including api/trpc.
+  // See https://clerk.com/docs/references/nextjs/auth-middleware
+  // for more information about configuring your Middleware
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+};
+----------------------
+----------------------
+
+
+
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+Build your own custom sign-in & sign-up pages
+https://clerk.com/docs/references/nextjs/custom-signup-signin-pages
+
+U sustini mozes da stavis gde god zelis te stranice. 
+Dokumentacija govori o jednoj lokaciji, ali na kraju dana to je samo ruta.
+Mi cemo u novi organizacioni folder postaviti sve sto je vezano za clerk 
+    > app 
+        > (platform)
+            > (sign-in) 
+                > [[...sign-in]]
+                    > page.tsx
+            > (sign-up)
+                > [[...sign-up]]
+                    > page.tsx
+
+function SignInPage(){ return <SignIn />; }
+function SignOutPage(){ return <SignOut />; }
+
+Update env variables kako bi middleware znao gde da nas redirectuje
+(u sustini podesi sign-in & sign-up rute)
+
+.env >
+-------------------
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+
+--------------------------------------------------
+I na kraju podesi public routeove
+Nije bitno da li je route unutar ili var ClerkProvider-a 
+Fora je u tome sto middleware kontrolise gde je potrebno, a gde 
+nije potrebna autentikacija&autorizacija 
+
+> unutar middleware.ts 
+
+export default authMiddleware({
+  // Routes that can be accessed while signed out
+  publicRoutes: ['/'],                              <---- public routes
+  // Routes that can always be accessed, and have
+  // no authentication information
+  ignoredRoutes: ['/no-auth-in-this-route'],
+});
+ 
+---------------------------------------------------
+
+> (platform)
+   > protected 
+        > page.tsx
+
+export default function ProtectedPage(){
+    return <div> protected page </div>
+}
+
+S obzirom da je svaka stranica po defaultu SERVER COMPONENT!
+to znaci da se ona renderuje na serveru. 
+Zato imamo pristup server funkcijama kao npr auth & currentUser
+
+i sada u toj zasticenoj stranici mi zelimo da dobijemo info o useru 
+
+import {currentUser} from "@clerk/nextjs"
+
+function ProtectedPage(){
+    const user = currentUser(); : Promise<User | null>
+}
+
+i zato cemo koristiti async function i awaitovati result
+mada usput cemo dodati i "auth" funkciju. Podsetnik: sve ovo je na serveru.
+auth i userId je koristan kada zelimo da zastitimo nase endpointove i useractione 
+tako sto cemo sa authom ensureovati da je user logovan i pristupe.
+
+import { auth, currentUser } from "@clerk/nextjs"
+
+export default async function ProtectedPage(){
+    const user = await currentUser();
+    const {userId} = auth(); //mozemo userId extractovati odatle
+    
+    return <div>Protected page - {user?.primaryEmailAddressId} - {userId} </div>
+}
+
+Sta ako imas standardni client component 
+
+"use client";   //I ovo je sada client component; 
+
+import { useAuth, useCurrentUser } from "@clerk/nextjs"
+//kada je nesto "use" to je automatski hook 
+
+export default function ProtectedPage(){
+    const {user} = useUser();
+    const {userId} = useAuth(); //mozemo userId extractovati odatle
+    
+    return <div>Protected page - {user?.primaryEmailAddressId} - {userId} </div>
+}
+
+------------------------------------------------------
+Tu postoji i komponenta "UserButton" koja je deo Clerk-a
+tj mali "krug" na koji kada kliknes mozes da radis manipulacije 
+nad user accountom(kao settings) i mozes da se signoutujes npr. 
+------------------------------------------------------
+
+import {UserButton, useAuth, useCurrentUser} from "@clerk/nextjs"
+
+export default function ProtectedPage(){
+    const {user} = useUser();
+    const {userId} = useAuth(); //mozemo userId extractovati odatle
+    
+    return <div> 
+                <UserButton/>  
+                Protected page - {user?.primaryEmailAddressId} - {userId} </div>
+}
+
+
+I sada kada se signoutujes preko "UserButton" mozemo da konfigurisemo 
+gde cemo da se redirectujemo
+
+<UserButton 
+    afterSignOutUrl="/"
+    />
+
+> and now remove protected folder :0

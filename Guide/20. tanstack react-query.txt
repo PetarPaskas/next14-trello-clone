@@ -1,0 +1,104 @@
+U ovom primeru instaliracemo 
+
+> npm i @tanstack/react/query 
+
+On nam sluzi da pozivamo API-eve???
+Nije mi najjasnije, ali cini mi se cool
+
+
+u folder "providers"
+kreiras query-provider.tsx
+
+"use client";
+
+import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+import { useState } from "react";
+
+export const QueryProvider = ({children}:{children:React.ReactNode})=>{
+    const [queryClient] = useState(()=>new QueryClient());
+
+    return (<QueryClientProvider client={queryClient}>
+        {children}
+    </QueryClientProvider>)
+}
+
+I potom onda layout platforme wrappujes u QueryProvider 
+
+import { ModalProvider } from "@/components/providers/modal-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { ClerkProvider } from "@clerk/nextjs";
+import {Toaster} from "sonner";
+export default function PlatformLayout({children}:{children:React.ReactNode}){
+    return <ClerkProvider>
+        <QueryProvider>
+            <Toaster /> 
+            <ModalProvider/>
+            {children}
+        </QueryProvider>
+    </ClerkProvider>
+}
+
+----------------------------------------------------------------------------------
+
+Sada zelimo API da napravimo kako bi smo fetchovali data for specific card. 
+Ne zelimo na primer da pravimo server action; nema smisla.
+
+Unutar App folder kreiras "api" folder
+
+Kreiranje tog route-a 
+
+    > App 
+        > api 
+            > cards 
+                > [cardId]
+                    > route.ts
+
+
+import { db } from "@/lib/db"
+import { auth } from "@clerk/nextjs"
+import { NextResponse } from "next/server"
+
+export async function GET(  
+    req: Request,
+    { params }: { params: { cardId: string } }){
+
+    if(!params.cardId)
+    return new NextResponse("Bad request", {status:400});
+
+    try{
+        const {userId, orgId} = auth();
+
+        if(!userId || !orgId){
+            return new NextResponse("Unauthorized", {status:401});
+        }
+
+        const card = await db.card.findUnique({
+            where:{
+                id:params.cardId,
+                list:{
+                    board:{
+                        orgId
+                    }
+                }
+            },
+            include:{
+                list:{
+                    select:{
+                        title:true
+                    }
+                }
+            }
+        })
+
+        return NextResponse.json(card);
+
+    }catch(error){
+        return new NextResponse("Internal error", {status:500});
+
+    }
+}
+
+
+-----------------------------------------------------------------
+
+Sada utility za fetching the data.

@@ -1,0 +1,58 @@
+Create a layout for our organization route
+which is going to push the content below the navbar
+and render a sidebar so that we can choose
+between organizations that we have
+
+
+> npm install usehooks-ts
+> npx shadcn-ui@latest add skeleton
+> npx shadcn-ui@latest add accordion
+> npx shadcn-ui@latest add separator
+> npm install zustand
+> npx shadcn-ui@latest add sheet
+
+== uzmi vidi i nacrtaj taj sidebar i celu strukturu aplikacije
+    i stranica. Tako ces skontatista moze na server side, a sta na client side 
+    i skontaces folder strukturu i sve.
+
+Unutar "nextJS" ako oznacis nesto kao "useClient"
+to ne znaci da nece biti server side rendered.
+Postoje hydration errors kada koristis client component.
+
+Svaka komponenta pa cak i ako je na "use client"; 
+ce biti server side rendered; barem prva iteracija toga.
+
+Ono sto sto se desava kada koristis models & sheets
+i te vrste client komponenti je da na server side ce 
+imati state koji ce biti npr "closed" dok na client side 
+odjednom ce biti "opened". To kreira hydration error to jest
+neujednacenost izmedju server i client state-a client componenta.
+
+Zato se moze dodavati "isMounted" state 
+koji ce gledati da li je komponenta renderovana 
+u browseru. useEffect ce pri prvom client renderu 
+onda podesiti komponentu tako da izbacuje sadrzaj
+koji treba da izbacuje u trenutku kada se pojavi na 
+ekranu. 
+
+Fixing hydration errors:
+-----------------------
+const [isMounted, setIsMounted] = useState(false);
+
+useEffect(()=>{
+    setIsMounted(true);
+},[])
+
+if(!isMounted)
+return null;
+-----------------------
+jedna stvar koju mozes uraditi da bi garantovao da 
+odredjena komponenta ce biti renderovana SAMO 
+NA CLIENT STRANI, A NE NA SERVER STRANI je da 
+koristis "useEffect". Taj hook nece runnovati
+u server side rendering iteraciji.
+
+Mogli bi i npr neki hook "useClientRender" napraviti
+
+"the perrils of hydration" - nextjs article
+
